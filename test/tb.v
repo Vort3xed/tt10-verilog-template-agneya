@@ -1,49 +1,54 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-/* This testbench just instantiates the module and makes some convenient wires
-   that can be driven / tested by the cocotb test.py.
-*/
+/* This testbench instantiates the UART-enabled wrapper */
 module tb ();
 
-  // Dump the signals to a VCD file. You can view it with gtkwave or surfer.
-  initial begin
-    $dumpfile("tb.vcd");
-    $dumpvars(0, tb);
-    #1;
-  end
+    // --- Parameters ---
+    localparam CLOCK_FREQ = 100_000; // Must match wrapper and test.py
+    localparam BAUD_RATE = 5_000;    // Must match wrapper and test.py
+    localparam CLK_PERIOD_NS = 1_000_000_000 / CLOCK_FREQ;
 
-  // Wire up the inputs and outputs:
-  reg clk;
-  reg rst_n;
-  reg ena;
-  reg [7:0] ui_in;
-  reg [7:0] uio_in;
-  wire [7:0] uo_out;
-  wire [7:0] uio_out;
-  wire [7:0] uio_oe;
-`ifdef GL_TEST
-  wire VPWR = 1'b1;
-  wire VGND = 1'b0;
-`endif
+    // --- Testbench Signals ---
+    reg clk = 0;
+    reg rst_n = 0; // Start in reset
 
-  // Replace tt_um_example with your module name:
-  tt_um_2x2MatrixMult_Vort3xed user_project (
+    // --- DUT Connections ---
+    reg [7:0] ui_in = 8'hFF; // Default UART RX idle state (high)
+    wire [7:0] uo_out;
+    wire [7:0] uio_inout; // Unused by DUT in this config
 
-      // Include power ports for the Gate Level test:
-`ifdef GL_TEST
-      .VPWR(VPWR),
-      .VGND(VGND),
-`endif
+    // --- Instantiate the Wrapper ---
+    tt_generic_wrapper #(
+        .CLOCK_FREQ(CLOCK_FREQ),
+        .BAUD_RATE(BAUD_RATE)
+    ) dut (
+        .ui_in(ui_in),
+        .uo_out(uo_out),
+        .uio_inout(uio_inout), // Connect but unused
+        .clk(clk),
+        .rst_n(rst_n)
+    );
 
-      .ui_in  (ui_in),    // Dedicated inputs
-      .uo_out (uo_out),   // Dedicated outputs
-      .uio_in (uio_in),   // IOs: Input path
-      .uio_out(uio_out),  // IOs: Output path
-      .uio_oe (uio_oe),   // IOs: Enable path (active high: 0=input, 1=output)
-      .ena    (ena),      // enable - goes high when design is selected
-      .clk    (clk),      // clock
-      .rst_n  (rst_n)     // not reset
-  );
+    // --- Clock Generation ---
+    always #(CLK_PERIOD_NS / 2) clk = ~clk;
+
+    // --- Reset Sequence ---
+    initial begin
+        $dumpfile("tb.vcd");
+        $dumpvars(0, tb);
+        #1; // Short delay
+        rst_n = 0; // Assert reset
+        #(CLK_PERIOD_NS * 10); // Hold reset for 10 cycles
+        rst_n = 1; // Deassert reset
+    end
+
+    // --- Cocotb Interface ---
+    // Cocotb will drive ui_in[0] for UART TX simulation
+    // Cocotb will monitor uo_out[0] for UART RX simulation
+
+    // Tie off unused inputs (optional, good practice)
+    // ui_in[7:1] are not used by the wrapper FSM
+    // uio_inout is set to Z by the wrapper, tb doesn't need to drive
 
 endmodule
