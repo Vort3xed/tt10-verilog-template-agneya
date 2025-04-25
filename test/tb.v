@@ -1,8 +1,8 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-/* This testbench just instantiates the module and makes some convenient wires
-   that can be driven / tested by the cocotb test.py.
+/* This testbench instantiates the module and creates a UART interface
+   that can be driven by the cocotb test.py.
 */
 module tb ();
 
@@ -22,12 +22,28 @@ module tb ();
   wire [7:0] uo_out;
   wire [7:0] uio_out;
   wire [7:0] uio_oe;
+
+  // UART specific wires
+  wire rx; // Data into the DUT (output from test)
+  wire tx; // Data out from the DUT (input to test)
+
+  // Connect UART signals to the appropriate pins
+  assign ui_in[0] = rx;    // Connect RX to the first ui_in bit
+  assign tx = uo_out[0];   // Connect TX from the first uo_out bit
+
+  // Initialize all inputs to valid values
+  // initial begin
+  //   ui_in = 8'h00;   // Initialize to avoid 'z' values
+  //   uio_in = 8'h00;  // Initialize to avoid 'z' values
+  //   ena = 1'b1;      // Enable the design
+  // end
+
 `ifdef GL_TEST
   wire VPWR = 1'b1;
   wire VGND = 1'b0;
 `endif
 
-  // Replace tt_um_example with your module name:
+  // Instantiate the matrix multiplier with UART
   tt_um_2x2MatrixMult_Vort3xed user_project (
 
       // Include power ports for the Gate Level test:

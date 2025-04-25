@@ -1,0 +1,3 @@
+- still doesnt work
+- i have a syntax errors everywhere, we just need to fix those. 
+- shit dont work

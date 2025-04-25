@@ -7,7 +7,8 @@
 
 // UART Receiver Module
 module uart_rx #(
-  parameter CLKS_PER_BIT = 10
+  // parameter CLKS_PER_BIT = 10  // For 9600 baud rate with 100KHz clock
+  parameter CLKS_PER_BIT = 10417
 )(
   input wire clk,
   input wire rst_n,
@@ -23,7 +24,7 @@ module uart_rx #(
 
   reg [1:0] state;
   reg [3:0] bit_counter;
-  reg [13:0] clk_counter;
+  reg [$clog2(CLKS_PER_BIT)-1:0] clk_counter;
   
   always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -62,7 +63,7 @@ module uart_rx #(
             clk_counter <= clk_counter + 1;
           end else begin
             clk_counter <= 0;
-            rx_data[bit_counter] <= rx;  // LSB first
+            rx_data <= {rx, rx_data[7:1]};  // LSB first
             
             if (bit_counter < 7) begin
               bit_counter <= bit_counter + 1;
@@ -91,7 +92,8 @@ endmodule
 
 // UART Transmitter Module
 module uart_tx #(
-  parameter CLKS_PER_BIT = 10
+  // parameter CLKS_PER_BIT = 10  // For 9600 baud rate with 100KHz clock
+  parameter CLKS_PER_BIT = 10417
 )(
   input wire clk,
   input wire rst_n,
@@ -108,7 +110,7 @@ module uart_tx #(
   
   reg [1:0] state;
   reg [2:0] bit_counter;
-  reg [13:0] clk_counter;
+  reg [$clog2(CLKS_PER_BIT)-1:0] clk_counter;
   reg [7:0] tx_data_reg;
   
   always @(posedge clk or negedge rst_n) begin
@@ -179,7 +181,7 @@ module uart_tx #(
   end
 endmodule
 
-// Original Matrix Multiplication Module
+// Original Matrix Multiplication Module (now as a submodule)
 module matrix_multiplier (
     input  wire [7:0] ui_in,    // Input for first matrix values
     output wire [7:0] uo_out,   // Sequential output of result cells
@@ -304,7 +306,8 @@ module tt_um_2x2MatrixMult_Vort3xed (
     input  wire       rst_n     // active-low reset
 );
   // Define UART baud rate
-  parameter CLKS_PER_BIT = 10;  // For simulation
+  // parameter CLKS_PER_BIT = 10;  // For 9600 baud with 100KHz clock
+  parameter CLKS_PER_BIT = 10417
 
   // State machine definitions
   localparam WAIT_MATRIX_A = 3'd0,
@@ -384,9 +387,6 @@ module tt_um_2x2MatrixMult_Vort3xed (
       tx_data <= 0;
       mm_ui_in <= 0;
       mm_uio_in <= 0;
-      matrix_A[0] <= 0; matrix_A[1] <= 0; matrix_A[2] <= 0; matrix_A[3] <= 0;
-      matrix_B[0] <= 0; matrix_B[1] <= 0; matrix_B[2] <= 0; matrix_B[3] <= 0;
-      result_matrix[0] <= 0; result_matrix[1] <= 0; result_matrix[2] <= 0; result_matrix[3] <= 0;
     end else begin
       // Default values
       tx_start <= 0;
@@ -418,7 +418,7 @@ module tt_um_2x2MatrixMult_Vort3xed (
           end
         end
         
-        // Feed values to matrix multiplier and wait for computation
+        // Feed values to matrix multiplier
         COMPUTE: begin
           case (byte_counter)
             // Feed Matrix A
@@ -438,13 +438,13 @@ module tt_um_2x2MatrixMult_Vort3xed (
         // Collect and send results
         SEND_RESULTS: begin
           case (byte_counter)
-            // Need to wait several cycles for each result
+            // Collect results
             3'd0: begin result_matrix[0] <= mm_uo_out; byte_counter <= byte_counter + 1; end
             3'd1: begin result_matrix[1] <= mm_uo_out; byte_counter <= byte_counter + 1; end
             3'd2: begin result_matrix[2] <= mm_uo_out; byte_counter <= byte_counter + 1; end
             3'd3: begin result_matrix[3] <= mm_uo_out; byte_counter <= byte_counter + 1; end
             
-            // Transmit results
+            // Send results over UART
             3'd4: begin
               if (!tx_start && !tx_done) begin
                 tx_data <= result_matrix[0];
