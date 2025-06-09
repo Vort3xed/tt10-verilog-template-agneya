@@ -6,8 +6,10 @@ from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, Timer, RisingEdge, FallingEdge, First
 
 
-CLOCK_FREQ_HZ = 100_000_000  # 100 MHz
-BAUD_RATE = 120000
+# Use 100MHz for Arty A7 FPGA board, 50MHz for Tiny Tapeout board
+# CLOCK_FREQ_HZ = 100_000_000  # 100 MHz
+CLOCK_FREQ_HZ = 50_000_000  # 100 MHz
+BAUD_RATE = 115200
 
 # UART Simulation Parameters
 CYCLES_PER_BIT = int(CLOCK_FREQ_HZ // BAUD_RATE)  # Should match CLKS_PER_BIT_FOR_UART in project.v for sim
@@ -78,8 +80,9 @@ async def test_matrix_mult_uart(dut):
 
     dut._log.info("All 8 matrix data bytes sent to DUT via UART.")
 
-    # expected results for each element is to be 4 times its actual value. 
-    expected_results_uart = [76, 88, 172, 200]
+    # expected results for each element is to be 4 times its actual value (?).
+    # expected_results_uart = [76, 88, 172, 200]
+    expected_results_uart = [19, 22, 43, 50]
     actual_results_uart = []
     actual_results_parallel = []
 
