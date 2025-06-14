@@ -89,7 +89,7 @@ module tt_um_2x2MatrixMult_Vort3xed (
 
   reg [3:0] state;
   reg [2:0] input_byte_counter;  // Counts 0-7 for 8 input bytes
-  reg [1:0] output_byte_counter;  // Counts 0-3 for 4 output bytes (C00, C01, C10, C11)
+  reg [2:0] output_byte_counter;  // Counts 0-7 for 4 output bytes (C00-1, C00-2, C01-1, C01-2, C10-1, C10-2, C11-1, C11-2)
 
   reg [7:0] A0, A1, A2, A3;  // Elements for matrix A
   reg [7:0] B0, B1, B2, B3;  // Elements for matrix B
@@ -161,22 +161,58 @@ module tt_um_2x2MatrixMult_Vort3xed (
         STATE_LOAD_UART_DATA: begin
           uio_oe_bit0_reg <= 1'b1;  // Enable UART TX pin output
           case (output_byte_counter)
-            2'd0: begin
+            // 3'd0: begin
+            //   uo_out_reg <= C00[7:0];
+            //   uart_tx_data_reg <= C00[7:0];
+            // end
+            // 3'd1: begin
+            //   uo_out_reg <= C01[7:0];
+            //   uart_tx_data_reg <= C01[7:0];
+            // end
+            // 3'd2: begin
+            //   uo_out_reg <= C10[7:0];
+            //   uart_tx_data_reg <= C10[7:0];
+            // end
+            // 3'd3: begin
+            //   uo_out_reg <= C11[7:0];
+            //   uart_tx_data_reg <= C11[7:0];
+            // end
+            3'd0: begin
+              uo_out_reg <= C00[15:8];
+              uart_tx_data_reg <= C00[15:8];
+            end
+            3'd1: begin
               uo_out_reg <= C00[7:0];
               uart_tx_data_reg <= C00[7:0];
             end
-            2'd1: begin
+            
+            3'd2: begin
+              uo_out_reg <= C01[15:8];
+              uart_tx_data_reg <= C01[15:8];
+            end
+            3'd3: begin
               uo_out_reg <= C01[7:0];
               uart_tx_data_reg <= C01[7:0];
             end
-            2'd2: begin
+            
+            3'd4: begin
+              uo_out_reg <= C10[15:8];
+              uart_tx_data_reg <= C10[15:8];
+            end
+            3'd5: begin
               uo_out_reg <= C10[7:0];
               uart_tx_data_reg <= C10[7:0];
             end
-            2'd3: begin
+            
+            3'd6: begin
+              uo_out_reg <= C11[15:8];
+              uart_tx_data_reg <= C11[15:8];
+            end
+            3'd7: begin
               uo_out_reg <= C11[7:0];
               uart_tx_data_reg <= C11[7:0];
             end
+            
           endcase
           uart_tx_start_pulse <= 1'b1;  // Start UART transmission for the loaded byte
           state <= STATE_TRIGGER_UART_SEND;
@@ -193,7 +229,7 @@ module tt_um_2x2MatrixMult_Vort3xed (
           uio_oe_bit0_reg <= 1'b1;  // Keep UART TX pin enabled
           // uart_tx_start_pulse is already de-asserted by default
           if (!uart_tx_busy) begin  // Current byte transmission finished
-            if (output_byte_counter == 2'd3) begin  // All 4 result bytes sent
+            if (output_byte_counter == 3'd7) begin  // All 4 result bytes sent
               state               <= STATE_WAIT_UART_INPUT;
               output_byte_counter <= 0;
               uio_oe_bit0_reg     <= 1'b0;  // Disable UART TX pin
