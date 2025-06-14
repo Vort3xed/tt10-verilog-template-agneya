@@ -47,6 +47,21 @@ async def receive_uart_byte(dut):
     await ClockCycles(dut.clk, CYCLES_PER_BIT)
     return byte_val
 
+def append_binary_numbers(num_array):
+    """Append two binary numbers."""
+
+    output = ""
+
+    # Convert to binary strings, remove '0b' prefix
+    for num in num_array:
+        temp = ""
+        temp += "0" * (8 - len(bin(num)[2:]))  # Pad to 8 bits
+        temp += bin(num)[2:]
+        output += temp
+
+    # Convert back to integer
+    return int(output, 2)
+
 @cocotb.test()
 async def test_matrix_mult_uart(dut):
     dut._log.info("Starting matrix multiplication test via UART on ui_in[0] and uio_out[0]")
