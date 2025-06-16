@@ -10,6 +10,7 @@ from cocotb.triggers import ClockCycles, Timer, RisingEdge, FallingEdge, First
 # CLOCK_FREQ_HZ = 100_000_000  # 100 MHz
 CLOCK_FREQ_HZ = 50_000_000  # 100 MHz
 BAUD_RATE = 115200
+RESULT_SIZE = 2 # Each result is 2 bytes (16 bits)
 
 # UART Simulation Parameters
 CYCLES_PER_BIT = int(CLOCK_FREQ_HZ // BAUD_RATE)  # Should match CLKS_PER_BIT_FOR_UART in project.v for sim
@@ -97,8 +98,12 @@ async def test_matrix_mult_uart(dut):
 
     # expected_results_uart = [76, 88, 172, 200]
     expected_results_uart = [0, 19, 0, 22, 0, 43, 0, 50]
+    true_results = [1900, 2200, 4300, 5000]
     actual_results_uart = []
     actual_results_parallel = []
+    bytes_received = []
+
+    total_bits = len(expected_results_uart)
 
     dut._log.info("Waiting for results from DUT via UART (on uio_out[0]) and parallel (on uo_out)...")
 
@@ -106,8 +111,8 @@ async def test_matrix_mult_uart(dut):
     # 8 bytes in, 4 bytes out, each byte is 10 bits (start+8+stop), each bit is CYCLES_PER_BIT
     first_byte_timeout = (len(all_input_values) * 10 * CYCLES_PER_BIT) + (CYCLES_PER_BIT * 20)
 
-    for i in range(len(expected_results_uart)):
-        dut._log.info(f"Attempting to receive UART byte {i+1}/{len(expected_results_uart)}...")
+    for i in range(total_bits):
+        dut._log.info(f"Attempting to receive UART byte {i+1}/{total_bits}...")
 
         # Wait for the next result byte with a generous timeout
         received_byte = None
@@ -117,7 +122,7 @@ async def test_matrix_mult_uart(dut):
             cycles_waited += (10 * CYCLES_PER_BIT)  # Each receive_uart_byte call waits at least one byte time
 
         assert received_byte is not None, f"UART_RX_SIM: Failed to receive byte {i+1} from DUT."
-        actual_results_uart.append(received_byte)
+        bytes_received.append(received_byte)
         dut._log.info(f"UART_RX_SIM: Received result byte {i+1}: {received_byte} (0x{received_byte:02X}) (Expected: {expected_results_uart[i]})")
 
         # Capture parallel output uo_out.
@@ -125,7 +130,15 @@ async def test_matrix_mult_uart(dut):
         actual_results_parallel.append(current_parallel_output)
         dut._log.info(f"Parallel uo_out captured for byte {i+1}: {current_parallel_output} (Expected for UART: {expected_results_uart[i]})")
 
-    assert actual_results_uart == expected_results_uart, \
+    actual_results_uart = [
+        append_binary_numbers([bytes_received[i], bytes_received[i + 1]])
+        for i in range(0, len(bytes_received), 2)
+    ]
+
+    dut._log.info(f"Final UART results: {bytes_received} (Expected: {expected_results_uart})")
+    dut._log.info(f"Final UART results: {actual_results_uart} (Expected: {true_results})")
+
+    assert actual_results_uart == true_results, \
         f"UART Matrix multiplication failed. Expected {expected_results_uart}, got {actual_results_uart}"
     dut._log.info("UART Matrix multiplication test passed!")
 
